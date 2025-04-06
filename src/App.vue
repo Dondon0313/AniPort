@@ -1,59 +1,61 @@
 <template>
-  <div class="min-h-screen bg-neutral-50 text-stone-800">
-    <!-- 導覽列 -->
-    <header class="bg-white shadow">
-      <div class="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-        <RouterLink
-          to="/"
-          class="text-2xl font-bold hover:text-blue-600"
-        >
-          AnimeNow
-        </RouterLink>
-        <nav class="space-x-6 text-sm font-medium">
-          <RouterLink
-            to="/"
-            class="hover:text-blue-600"
-          >
-            首頁
-          </RouterLink>
-          <RouterLink
-            to="/bangumi"
-            class="hover:text-blue-600"
-          >
-            番劇列表
-          </RouterLink>
-          <RouterLink
-            to="/favorites"
-            class="hover:text-blue-600"
-          >
-            我的收藏
-          </RouterLink>
-          <RouterLink
-            to="/watch"
-            class="hover:text-blue-600"
-          >
-            觀看平台
-          </RouterLink>
-        </nav>
-      </div>
-    </header>
+  <div class="min-h-screen flex flex-col">
+    <!-- 頂部導航 -->
+    <AppHeader />
 
-    <!-- 主要區塊 -->
-    <main>
-      <RouterView />
+    <!-- 主要內容區 -->
+    <main class="flex-1">
+      <!-- 頁面切換過渡效果 -->
+      <RouterView v-slot="{ Component }">
+        <Transition name="fade" mode="out-in">
+          <component :is="Component" />
+        </Transition>
+      </RouterView>
     </main>
 
     <!-- 頁腳 -->
-    <footer class="bg-stone-100 py-6 text-center text-sm text-stone-500 mt-12">
-      &copy; 2025 AnimeNow. All rights reserved.
-    </footer>
+    <AppFooter />
+    
+    <!-- 返回頂部按鈕 -->
+    <button
+      v-show="showBackToTop"
+      @click="scrollToTop"
+      class="fixed bottom-8 right-8 bg-blue-600 text-white w-10 h-10 rounded-full flex items-center justify-center shadow-lg hover:bg-blue-700 transition-all z-20"
+    >
+      ↑
+    </button>
   </div>
 </template>
 
 <script setup lang="ts">
-// 空邏輯，主要用作頁面框架
+import { ref, onMounted, onBeforeUnmount } from 'vue';
+import AppHeader from '@/components/layout/AppHeader.vue';
+import AppFooter from '@/components/layout/AppFooter.vue';
+
+// 返回頂部功能
+const showBackToTop = ref(false);
+
+const checkScroll = () => {
+  showBackToTop.value = window.scrollY > 300;
+};
+
+const scrollToTop = () => {
+  window.scrollTo({
+    top: 0,
+    behavior: 'smooth'
+  });
+};
+
+// 監聽滾動事件
+onMounted(() => {
+  window.addEventListener('scroll', checkScroll);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('scroll', checkScroll);
+});
 </script>
 
-<style scoped>
-/* 可調整動畫主題色系或字體 */
+<style>
+/* 全局樣式已移至 main.css */
 </style>
