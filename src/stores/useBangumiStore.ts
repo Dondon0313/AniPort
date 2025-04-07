@@ -1,9 +1,8 @@
-// src/stores/useBangumiStore.ts
 import { defineStore } from 'pinia'
 import { Bangumi, Episode, Comment } from '@/types/anime'
-import axios from 'axios' // 需要先安裝 axios: npm install axios
+import axios from 'axios' 
 
-// 後端 API 基礎 URL，根據您的後端實際運行地址調整
+// 後端 API 
 const API_URL = 'https://localhost:5000'
 
 export const useBangumiStore = defineStore('bangumi', {
@@ -165,7 +164,7 @@ export const useBangumiStore = defineStore('bangumi', {
       episodeId: number,
       bangumiId: number,
       timestamp: string,
-      progress: number // 觀看進度（秒）
+      progress: number 
     }[],
 
     // 搜索和過濾狀態
@@ -177,7 +176,7 @@ export const useBangumiStore = defineStore('bangumi', {
       sort: 'newest', // 'newest', 'rating', 'popularity'
     },
     
-    // API 相關狀態
+    
     isLoading: false,
     error: null as Error | null,
   }),
@@ -221,7 +220,7 @@ export const useBangumiStore = defineStore('bangumi', {
         
         return matchesSearch && matchesGenre && matchesWeekDay && matchesStatus
       }).sort((a, b) => {
-        // 排序
+        
         switch (state.filters.sort) {
           case 'newest':
             return new Date(b.airDate).getTime() - new Date(a.airDate).getTime()
@@ -261,8 +260,6 @@ export const useBangumiStore = defineStore('bangumi', {
   },
 
   actions: {
-    // 原有的本地操作方法
-    
     // 收藏/取消收藏
     toggleFavorite(id: number) {
       if (this.favorites.includes(id)) {
@@ -331,7 +328,6 @@ export const useBangumiStore = defineStore('bangumi', {
       // 在實際應用中這裡會調用API將評論保存到後端
     },
     
-    // 新增的 API 操作方法
     
     // 從 API 獲取所有番劇
     async fetchAllBangumis() {

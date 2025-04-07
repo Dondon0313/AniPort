@@ -1,27 +1,28 @@
-<!-- src/pages/BangumiList.vue -->
 <template>
   <div class="max-w-7xl mx-auto px-4 py-10">
     <div class="flex justify-between items-center mb-6">
-      <h1 class="text-3xl font-bold">番劇列表</h1>
+      <h1 class="text-3xl font-bold">
+        番劇列表
+      </h1>
       
       <!-- 布局切換 -->
       <div class="flex bg-white rounded-lg border p-1">
         <button 
-          @click="layout = 'grid'"
           :class="[
             'px-3 py-1 rounded-md flex items-center transition',
             layout === 'grid' ? 'bg-stone-100 text-stone-800' : 'text-stone-500 hover:text-stone-700'
           ]"
+          @click="layout = 'grid'"
         >
           <span class="mr-1">◫</span>
           <span class="hidden sm:inline">網格</span>
         </button>
         <button 
-          @click="layout = 'list'"
           :class="[
             'px-3 py-1 rounded-md flex items-center transition',
             layout === 'list' ? 'bg-stone-100 text-stone-800' : 'text-stone-500 hover:text-stone-700'
           ]"
+          @click="layout = 'list'"
         >
           <span class="mr-1">☰</span>
           <span class="hidden sm:inline">列表</span>
@@ -40,7 +41,10 @@
     </div>
     
     <!-- 網格布局 -->
-    <div v-if="layout === 'grid'" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+    <div
+      v-if="layout === 'grid'"
+      class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6"
+    >
       <RouterLink
         v-for="item in filteredList"
         :key="item.id"
@@ -77,7 +81,7 @@
             <span class="mx-1">•</span>
             <span>
               {{ item.status === 'ongoing' ? '連載中' : 
-                 item.status === 'upcoming' ? '即將播出' : '已完結' }}
+                item.status === 'upcoming' ? '即將播出' : '已完結' }}
             </span>
           </div>
           
@@ -94,7 +98,10 @@
     </div>
     
     <!-- 列表布局 -->
-    <div v-else-if="layout === 'list'" class="space-y-4">
+    <div
+      v-else-if="layout === 'list'"
+      class="space-y-4"
+    >
       <RouterLink
         v-for="item in filteredList"
         :key="item.id"
@@ -112,7 +119,9 @@
           <div class="flex-1 ml-4 py-2 flex flex-col justify-between">
             <div>
               <div class="flex items-center justify-between">
-                <h3 class="text-lg font-semibold hover:text-blue-600">{{ item.title }}</h3>
+                <h3 class="text-lg font-semibold hover:text-blue-600">
+                  {{ item.title }}
+                </h3>
                 
                 <!-- 收藏按鈕 -->
                 <button
@@ -131,12 +140,14 @@
                 <span class="mr-3">{{ item.totalEpisodes }}集</span>
                 <span class="mr-3">
                   {{ item.status === 'ongoing' ? '連載中' : 
-                     item.status === 'upcoming' ? '即將播出' : '已完結' }}
+                    item.status === 'upcoming' ? '即將播出' : '已完結' }}
                 </span>
                 <span class="mr-3">{{ item.studio }}</span>
               </div>
               
-              <p class="text-stone-600 text-sm line-clamp-2">{{ item.description }}</p>
+              <p class="text-stone-600 text-sm line-clamp-2">
+                {{ item.description }}
+              </p>
             </div>
             
             <div class="flex items-center mt-2">
@@ -144,7 +155,9 @@
                 <span>★</span>
                 <span class="ml-1">{{ item.rating }}</span>
               </div>
-              <div class="mx-2 text-stone-300">|</div>
+              <div class="mx-2 text-stone-300">
+                |
+              </div>
               <div class="flex flex-wrap gap-1">
                 <span 
                   v-for="genre in item.genres" 
@@ -161,10 +174,19 @@
     </div>
     
     <!-- 無結果提示 -->
-    <div v-if="filteredList.length === 0" class="text-center py-16">
-      <div class="text-stone-400 text-4xl mb-3">🔍</div>
-      <h3 class="text-xl font-medium mb-2">未找到符合條件的番劇</h3>
-      <p class="text-stone-500">嘗試調整您的篩選條件</p>
+    <div
+      v-if="filteredList.length === 0"
+      class="text-center py-16"
+    >
+      <div class="text-stone-400 text-4xl mb-3">
+        🔍
+      </div>
+      <h3 class="text-xl font-medium mb-2">
+        未找到符合條件的番劇
+      </h3>
+      <p class="text-stone-500">
+        嘗試調整您的篩選條件
+      </p>
       <button 
         class="mt-4 text-blue-600 hover:text-blue-800"
         @click="resetFilters"
@@ -173,43 +195,46 @@
       </button>
     </div>
     
-    <!-- 頁碼導航 (如果結果數量很多) -->
-    <div v-if="filteredList.length > itemsPerPage" class="mt-8 flex justify-center">
+    <!-- 頁碼導航  -->
+    <div
+      v-if="filteredList.length > itemsPerPage"
+      class="mt-8 flex justify-center"
+    >
       <div class="flex">
         <button 
           :disabled="currentPage === 1"
-          @click="currentPage--"
           :class="[
             'px-3 py-1 border rounded-l',
             currentPage === 1 
               ? 'bg-stone-100 text-stone-400 cursor-not-allowed' 
               : 'bg-white hover:bg-stone-50'
           ]"
+          @click="currentPage--"
         >
           上一頁
         </button>
         <button 
           v-for="page in totalPages" 
           :key="page"
-          @click="currentPage = page"
           :class="[
             'px-3 py-1 border-t border-b',
             currentPage === page 
               ? 'bg-blue-600 text-white border-blue-600' 
               : 'bg-white hover:bg-stone-50'
           ]"
+          @click="currentPage = page"
         >
           {{ page }}
         </button>
         <button 
           :disabled="currentPage === totalPages"
-          @click="currentPage++"
           :class="[
             'px-3 py-1 border rounded-r',
             currentPage === totalPages 
               ? 'bg-stone-100 text-stone-400 cursor-not-allowed' 
               : 'bg-white hover:bg-stone-50'
           ]"
+          @click="currentPage++"
         >
           下一頁
         </button>
@@ -219,43 +244,43 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
-import { useBangumiStore } from '@/stores/useBangumiStore';
-import AdvancedFilter from '@/components/AdvancedFilter.vue';
+import { ref, computed } from 'vue'
+import { useBangumiStore } from '@/stores/useBangumiStore'
+import AdvancedFilter from '@/components/AdvancedFilter.vue'
 
-const store = useBangumiStore();
+const store = useBangumiStore()
 
 // 顯示設置
-const layout = ref('grid'); // 'grid' 或 'list'
-const currentPage = ref(1);
-const itemsPerPage = 20;
+const layout = ref('grid') 
+const currentPage = ref(1)
+const itemsPerPage = 20
 
 // 從 store 獲取篩選後的番劇列表
-const allFilteredList = computed(() => store.filteredBangumiList);
+const allFilteredList = computed(() => store.filteredBangumiList)
 
 // 分頁處理
 const filteredList = computed(() => {
-  const startIndex = (currentPage.value - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  return allFilteredList.value.slice(startIndex, endIndex);
-});
+  const startIndex = (currentPage.value - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  return allFilteredList.value.slice(startIndex, endIndex)
+})
 
 const totalPages = computed(() => 
-  Math.ceil(allFilteredList.value.length / itemsPerPage)
-);
+  Math.ceil(allFilteredList.value.length / itemsPerPage),
+)
 
 // 收藏功能
 const toggleFavorite = (id: number) => {
-  store.toggleFavorite(id);
-};
+  store.toggleFavorite(id)
+}
 
 const isFavorite = (id: number) => {
-  return store.isFavorite(id);
-};
+  return store.isFavorite(id)
+}
 
 // 重置篩選條件
 const resetFilters = () => {
-  store.resetFilters();
-  currentPage.value = 1;
-};
+  store.resetFilters()
+  currentPage.value = 1
+}
 </script>

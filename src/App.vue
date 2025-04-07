@@ -1,26 +1,27 @@
 <template>
   <div class="min-h-screen flex flex-col">
-    <!-- 頂部導航 -->
     <AppHeader />
 
     <!-- 主要內容區 -->
     <main class="flex-1">
       <!-- 頁面切換過渡效果 -->
       <RouterView v-slot="{ Component }">
-        <Transition name="fade" mode="out-in">
+        <Transition
+          name="fade"
+          mode="out-in"
+        >
           <component :is="Component" />
         </Transition>
       </RouterView>
     </main>
 
-    <!-- 頁腳 -->
     <AppFooter />
     
     <!-- 返回頂部按鈕 -->
     <button
       v-show="showBackToTop"
-      @click="scrollToTop"
       class="fixed bottom-8 right-8 bg-blue-600 text-white w-10 h-10 rounded-full flex items-center justify-center shadow-lg hover:bg-blue-700 transition-all z-20"
+      @click="scrollToTop"
     >
       ↑
     </button>
@@ -28,34 +29,34 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount } from 'vue';
-import AppHeader from '@/components/layout/AppHeader.vue';
-import AppFooter from '@/components/layout/AppFooter.vue';
+import { ref, onMounted, onBeforeUnmount } from 'vue'
+import AppHeader from '@/components/layout/AppHeader.vue'
+import AppFooter from '@/components/layout/AppFooter.vue'
 
 // 返回頂部功能
-const showBackToTop = ref(false);
+const showBackToTop = ref(false)
 
 const checkScroll = () => {
-  showBackToTop.value = window.scrollY > 300;
-};
+  showBackToTop.value = window.scrollY > 300
+}
 
 const scrollToTop = () => {
   window.scrollTo({
     top: 0,
-    behavior: 'smooth'
-  });
-};
+    behavior: 'smooth',
+  })
+}
 
 // 監聽滾動事件
 onMounted(() => {
-  window.addEventListener('scroll', checkScroll);
-});
+  window.addEventListener('scroll', checkScroll)
+})
 
 onBeforeUnmount(() => {
-  window.removeEventListener('scroll', checkScroll);
-});
+  window.removeEventListener('scroll', checkScroll)
+})
 </script>
 
 <style>
-/* 全局樣式已移至 main.css */
+
 </style>
