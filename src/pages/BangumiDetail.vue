@@ -1,55 +1,3 @@
-<script setup lang="ts">
-import { useRoute, useRouter } from 'vue-router'
-import { useBangumiStore } from '@/stores/useBangumiStore'
-import { computed, ref } from 'vue'
-
-const route = useRoute()
-const router = useRouter()
-const store = useBangumiStore()
-const bangumiId = Number(route.params.id)
-
-
-const bangumi = computed(() => store.bangumiList.find(b => b.id === bangumiId))
-
-// 標籤頁控制
-const activeTab = ref('information')
-
-// 假設的劇集列表
-const episodes = ref([
-  { id: 1, number: 1, title: '第一集', airDate: '2025-04-05', duration: '24:30' },
-  { id: 2, number: 2, title: '第二集', airDate: '2025-04-12', duration: '24:15' },
-  { id: 3, number: 3, title: '第三集', airDate: '2025-04-19', duration: '24:45' },
-  { id: 4, number: 4, title: '第四集', airDate: '2025-04-26', duration: '24:30' },
-])
-
-// 相關推薦
-const recommendations = computed(() => 
-  store.bangumiList.filter(item => item.id !== bangumiId).slice(0, 3),
-)
-
-// 收藏控制
-const toggleFavorite = () => {
-  if (bangumi.value) {
-    store.toggleFavorite(bangumi.value.id)
-  }
-}
-
-const isFavorite = computed(() => {
-  if (bangumi.value) {
-    return store.isFavorite(bangumi.value.id)
-  }
-  return false
-})
-
-// 開始觀看
-const watchEpisode = (episodeId: number) => {
-  router.push({
-    path: '/watch',
-    query: { id: bangumiId, episode: episodeId },
-  })
-}
-</script>
-
 <template>
   <div
     v-if="bangumi"
@@ -249,6 +197,7 @@ const watchEpisode = (episodeId: number) => {
           
           <div class="mb-6">
             <textarea 
+              v-model="commentContent"
               class="w-full rounded-lg border p-3 h-24 focus:ring-2 focus:ring-blue-400" 
               placeholder="分享你對這部作品的看法..."
             />
@@ -260,43 +209,67 @@ const watchEpisode = (episodeId: number) => {
                     v-for="i in 5"
                     :key="i"
                     class="cursor-pointer"
-                  >⭐</span>
+                    :class="i <= rating ? 'text-amber-500' : 'text-stone-300'"
+                    @click="rating = i"
+                  >★</span>
                 </div>
               </div>
-              <button class="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg">
-                發送評論
+              <button 
+                class="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg"
+                :disabled="!commentContent.trim() || submitting"
+                @click="submitComment"
+              >
+                {{ submitting ? '發送中...' : '發送評論' }}
               </button>
             </div>
           </div>
           
-          <div class="space-y-4">
-            <div class="border-b last:border-b-0 pb-4">
+          <div
+            v-if="loading"
+            class="text-center py-6"
+          >
+            <div class="animate-spin inline-block w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full" />
+            <p class="mt-2 text-stone-500">
+              載入評論中...
+            </p>
+          </div>
+          
+          <div
+            v-else-if="comments.length === 0"
+            class="text-center py-8 text-stone-500"
+          >
+            暫無評論，成為第一個評論的人吧！
+          </div>
+          
+          <div
+            v-else
+            class="space-y-4"
+          >
+            <div 
+              v-for="comment in comments" 
+              :key="comment.id"
+              class="border-b last:border-b-0 pb-4"
+            >
               <div class="flex items-start">
-                <div class="w-10 h-10 rounded-full bg-stone-200 flex-shrink-0" />
-                <div class="ml-3 flex-1">
-                  <div class="flex items-center">
-                    <span class="font-medium">anime_lover</span>
-                    <span class="ml-3 text-xs text-stone-500">2025-04-01</span>
-                    <span class="ml-3 text-amber-500">⭐⭐⭐⭐⭐</span>
-                  </div>
-                  <p class="mt-1 text-stone-800">
-                    這部作品的劇情和角色設定非常出色，每集都能給人驚喜。強烈推薦！
-                  </p>
+                <div class="w-10 h-10 rounded-full bg-stone-200 flex-shrink-0 flex items-center justify-center text-stone-400">
+                  👤
                 </div>
-              </div>
-            </div>
-            
-            <div class="border-b last:border-b-0 pb-4">
-              <div class="flex items-start">
-                <div class="w-10 h-10 rounded-full bg-stone-200 flex-shrink-0" />
                 <div class="ml-3 flex-1">
                   <div class="flex items-center">
-                    <span class="font-medium">sakura_fan</span>
-                    <span class="ml-3 text-xs text-stone-500">2025-03-28</span>
-                    <span class="ml-3 text-amber-500">⭐⭐⭐⭐</span>
+                    <span class="font-medium">{{ comment.username }}</span>
+                    <span class="ml-3 text-xs text-stone-500">{{ formatDate(comment.created) }}</span>
+                    <span
+                      v-if="comment.rating"
+                      class="ml-3 text-amber-500"
+                    >
+                      <span
+                        v-for="i in 5"
+                        :key="i"
+                      >{{ i <= comment.rating ? '★' : '☆' }}</span>
+                    </span>
                   </div>
                   <p class="mt-1 text-stone-800">
-                    畫風很不錯，但是節奏有點慢。總體來說值得一看！
+                    {{ comment.content }}
                   </p>
                 </div>
               </div>
@@ -315,7 +288,7 @@ const watchEpisode = (episodeId: number) => {
           <div class="space-y-2 text-sm">
             <div class="flex justify-between">
               <span class="text-stone-500">類型</span>
-              <span>奇幻、冒險</span>
+              <span>{{ bangumi.genres.join('、') }}</span>
             </div>
             <div class="flex justify-between">
               <span class="text-stone-500">首播</span>
@@ -327,11 +300,17 @@ const watchEpisode = (episodeId: number) => {
             </div>
             <div class="flex justify-between">
               <span class="text-stone-500">集數</span>
-              <span>12</span>
+              <span>{{ bangumi.totalEpisodes }}</span>
             </div>
             <div class="flex justify-between">
               <span class="text-stone-500">評分</span>
-              <span class="text-amber-500">⭐⭐⭐⭐⭐ 9.2</span>
+              <span class="text-amber-500">
+                <span
+                  v-for="i in 5"
+                  :key="i"
+                >{{ i <= Math.round(bangumi.rating / 2) ? '★' : '☆' }}</span>
+                {{ bangumi.rating }}
+              </span>
             </div>
           </div>
         </div>
@@ -375,3 +354,137 @@ const watchEpisode = (episodeId: number) => {
     無此番劇資訊
   </div>
 </template>
+
+<script setup lang="ts">
+import { useRoute, useRouter } from 'vue-router'
+import { useBangumiStore } from '@/stores/useBangumiStore'
+import { useAuthStore } from '@/stores/useAuthStore'
+import { computed, ref, onMounted } from 'vue'
+import axios from 'axios'
+
+const route = useRoute()
+const router = useRouter()
+const store = useBangumiStore()
+const authStore = useAuthStore()
+const bangumiId = Number(route.params.id)
+
+const bangumi = computed(() => store.bangumiList.find(b => b.id === bangumiId))
+
+// 標籤頁控制
+const activeTab = ref('information')
+
+// 假設的劇集列表
+const episodes = ref([
+  { id: 1, number: 1, title: '第一集', airDate: '2025-04-05', duration: '24:30' },
+  { id: 2, number: 2, title: '第二集', airDate: '2025-04-12', duration: '24:15' },
+  { id: 3, number: 3, title: '第三集', airDate: '2025-04-19', duration: '24:45' },
+  { id: 4, number: 4, title: '第四集', airDate: '2025-04-26', duration: '24:30' },
+])
+
+// 相關推薦
+const recommendations = computed(() => 
+  store.bangumiList.filter(item => item.id !== bangumiId).slice(0, 3),
+)
+
+// 收藏控制
+const toggleFavorite = () => {
+  if (bangumi.value) {
+    store.toggleFavorite(bangumi.value.id)
+  }
+}
+
+const isFavorite = computed(() => {
+  if (bangumi.value) {
+    return store.isFavorite(bangumi.value.id)
+  }
+  return false
+})
+
+// 開始觀看
+const watchEpisode = (episodeId: number) => {
+  router.push({
+    path: '/watch',
+    query: { id: bangumiId, episode: episodeId },
+  })
+}
+
+// 評論相關功能
+const commentContent = ref('')
+const rating = ref(5)
+const submitting = ref(false)
+const comments = ref([])
+const loading = ref(false)
+
+// 提交評論
+const submitComment = async () => {
+  if (!authStore.isLoggedIn) {
+    alert('請先登入')
+    router.push('/login')
+    return
+  }
+
+  if (!commentContent.value.trim()) {
+    return
+  }
+  
+  submitting.value = true
+  try {
+    await axios.post('/api/Comment', {
+      targetId: bangumiId,
+      targetType: 'bangumi',
+      content: commentContent.value,
+    })
+    
+    // 評論成功，刷新評論列表
+    commentContent.value = ''
+    rating.value = 5
+    fetchComments()
+    
+  } catch (error) {
+    console.error('Failed to submit comment:', error)
+    alert('評論發送失敗，請稍後再試')
+  } finally {
+    submitting.value = false
+  }
+}
+
+// 獲取評論
+const fetchComments = async () => {
+  loading.value = true
+  try {
+    const response = await axios.get(`/api/Comment/Bangumi/${bangumiId}`)
+    comments.value = response.data
+  } catch (error) {
+    console.error('Failed to fetch comments:', error)
+  } finally {
+    loading.value = false
+  }
+}
+
+// 格式化日期
+const formatDate = (dateString: string) => {
+  const date = new Date(dateString)
+  return date.toLocaleDateString('zh-TW', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+onMounted(async () => {
+  // 嘗試從 API 獲取劇集列表
+  try {
+    const episodesData = await store.fetchEpisodesByBangumiId(bangumiId)
+    if (episodesData && episodesData.length > 0) {
+      episodes.value = episodesData
+    }
+  } catch (error) {
+    console.error('Failed to fetch episodes:', error)
+  }
+  
+  // 載入評論
+  fetchComments()
+})
+</script>

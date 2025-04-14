@@ -1,10 +1,6 @@
+// src/router/index.ts 
 import { createRouter, createWebHistory, RouteRecordRaw } from 'vue-router'
 import { useAuthStore } from '@/stores/useAuthStore'
-// import HomePage from '@/pages/HomePage.vue'
-// import BangumiList from '@/pages/BangumiList.vue'
-// import BangumiDetail from '@/pages/BangumiDetail.vue'
-// import Favorites from '@/pages/Favorites.vue'
-// import WatchPage from '@/pages/Watch.vue'
 
 const routes: RouteRecordRaw[] = [
   {
@@ -28,11 +24,6 @@ const routes: RouteRecordRaw[] = [
     path: '/watch',
     component: () => import('@/pages/Watch.vue'),
   },
-  // {
-  //   path: '/profile',
-  //   component: () => import('@/pages/UserProfile.vue'),
-  //   meta: { requiresAuth: true }
-  // },
   {
     path: '/login',
     component: () => import('@/pages/Login.vue'),
@@ -42,6 +33,30 @@ const routes: RouteRecordRaw[] = [
     path: '/register',
     component: () => import('@/pages/Register.vue'),
     meta: { guestOnly: true },
+  },
+  // 新增路由
+  {
+    path: '/history',
+    component: () => import('@/pages/WatchHistory.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/friends',
+    component: () => import('@/pages/Friends.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/notifications',
+    component: () => import('@/pages/Notifications.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/schedule',
+    component: () => import('@/pages/Schedule.vue'),
+  },
+  {
+    path: '/user/:id',
+    component: () => import('@/pages/UserProfile.vue'),
   },
 ]
 

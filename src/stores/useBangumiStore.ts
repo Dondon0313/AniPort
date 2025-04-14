@@ -260,33 +260,71 @@ export const useBangumiStore = defineStore('bangumi', {
   },
 
   actions: {
-    // 收藏/取消收藏
-    toggleFavorite(id: number) {
-      if (this.favorites.includes(id)) {
-        this.favorites = this.favorites.filter(f => f !== id)
-      } else {
-        this.favorites.push(id)
+    // 初始化應用時載入數據
+    async initializeApp() {
+      this.isLoading = true
+      try {
+        await this.fetchAllBangumis()
+        // 獲取登入用戶的收藏
+        if (localStorage.getItem('user')) {
+          await this.fetchUserFavorites()
+        }
+      } catch (error) {
+        console.error('Failed to initialize app:', error)
+      } finally {
+        this.isLoading = false
       }
-      localStorage.setItem('bangumi-favorites', JSON.stringify(this.favorites))
     },
-
+  
+    // 收藏/取消收藏
+    async toggleFavorite(id: number) {
+      // 檢查用戶是否登入
+      if (!localStorage.getItem('user')) {
+        // 未登入時使用本地儲存
+        if (this.favorites.includes(id)) {
+          this.favorites = this.favorites.filter(f => f !== id)
+        } else {
+          this.favorites.push(id)
+        }
+        localStorage.setItem('bangumi-favorites', JSON.stringify(this.favorites))
+        return
+      }
+  
+      try {
+        if (this.favorites.includes(id)) {
+          // 從收藏中移除
+          await axios.delete(`${API_URL}/api/Favorite/${id}`)
+          this.favorites = this.favorites.filter(f => f !== id)
+        } else {
+          // 添加到收藏
+          await axios.post(`${API_URL}/api/Favorite/${id}`)
+          this.favorites.push(id)
+        }
+        localStorage.setItem('bangumi-favorites', JSON.stringify(this.favorites))
+      } catch (error) {
+        console.error('Failed to toggle favorite:', error)
+      }
+    },
+  
     // 檢查是否已收藏
     isFavorite(id: number) {
       return this.favorites.includes(id)
     },
-
+  
     // 記錄觀看歷史
-    addToHistory(episodeId: number, bangumiId: number, progress: number) {
+    async addToHistory(episodeId: number, bangumiId: number, progress: number) {
       // 先移除舊的相同記錄
       this.history = this.history.filter(h => h.episodeId !== episodeId)
       
       // 添加新記錄
-      this.history.push({
+      const newRecord = {
         episodeId,
         bangumiId,
         timestamp: new Date().toISOString(),
         progress,
-      })
+      }
+      
+      this.history.push(newRecord)
       
       // 只保留最近的50條記錄
       if (this.history.length > 50) {
@@ -294,19 +332,54 @@ export const useBangumiStore = defineStore('bangumi', {
       }
       
       localStorage.setItem('bangumi-history', JSON.stringify(this.history))
+  
+      // 如果用戶已登入，同步到後端
+      if (localStorage.getItem('user')) {
+        try {
+          await axios.post(`${API_URL}/api/WatchHistory`, {
+            episodeId,
+            progress,
+          })
+          
+          // 同時增加觀看次數
+          if (progress === 10) { // 只在開始觀看時增加一次
+            await this.incrementEpisodeViews(episodeId)
+          }
+        } catch (error) {
+          console.error('Failed to save watch history to server:', error)
+        }
+      }
     },
-
+  
     // 獲取觀看進度
-    getWatchProgress(episodeId: number) {
-      const record = this.history.find(h => h.episodeId === episodeId)
-      return record ? record.progress : 0
+    async getWatchProgress(episodeId: number) {
+      // 先查詢本地記錄
+      const localRecord = this.history.find(h => h.episodeId === episodeId)
+      const localProgress = localRecord ? localRecord.progress : 0
+      
+      // 如果用戶已登入，嘗試從伺服器獲取進度
+      if (localStorage.getItem('user')) {
+        try {
+          const response = await axios.get(`${API_URL}/api/WatchHistory?episodeId=${episodeId}`)
+          if (response.data && response.data.length > 0) {
+            const serverProgress = response.data[0].progress
+            
+            // 使用更大的進度值
+            return Math.max(localProgress, serverProgress)
+          }
+        } catch (error) {
+          console.error('Failed to fetch watch progress from server:', error)
+        }
+      }
+      
+      return localProgress
     },
-
+  
     // 更新過濾條件
     updateFilters(filters: Partial<typeof this.filters>) {
       this.filters = { ...this.filters, ...filters }
     },
-
+  
     // 重置過濾條件
     resetFilters() {
       this.filters = {
@@ -317,17 +390,36 @@ export const useBangumiStore = defineStore('bangumi', {
         sort: 'newest',
       }
     },
-
+  
     // 添加評論
-    addComment(comment: Omit<Comment, 'id'>) {
-      const newId = Math.max(0, ...this.comments.map(c => c.id)) + 1
-      this.comments.push({
-        ...comment,
-        id: newId,
-      })
-      // 在實際應用中這裡會調用API將評論保存到後端
+    async addComment(comment: Omit<Comment, 'id'>) {
+      // 如果用戶已登入，發送評論到後端
+      if (localStorage.getItem('user')) {
+        try {
+          const response = await axios.post(`${API_URL}/api/Comment`, {
+            targetId: comment.targetId,
+            targetType: comment.targetType,
+            content: comment.content,
+          })
+          
+          // 使用伺服器返回的評論數據更新本地
+          this.comments.push(response.data)
+          return response.data
+        } catch (error) {
+          console.error('Failed to add comment:', error)
+          throw error
+        }
+      } else {
+        // 未登入，只在本地添加（實際應用中可能需要提示用戶登入）
+        const newId = Math.max(0, ...this.comments.map(c => c.id)) + 1
+        const newComment = {
+          ...comment,
+          id: newId,
+        }
+        this.comments.push(newComment)
+        return newComment
+      }
     },
-    
     
     // 從 API 獲取所有番劇
     async fetchAllBangumis() {
@@ -335,7 +427,7 @@ export const useBangumiStore = defineStore('bangumi', {
       this.error = null
       
       try {
-        const response = await axios.get(`${API_URL}/Bangumi`)
+        const response = await axios.get(`${API_URL}/api/Bangumi`)
         
         // 替換本地數據
         this.bangumiList = response.data
@@ -345,6 +437,8 @@ export const useBangumiStore = defineStore('bangumi', {
         this.error = error as Error
         this.isLoading = false
         console.error('Error fetching bangumis:', error)
+        // 如果 API 請求失敗，使用本地數據作為後備
+        console.log('Using local data as fallback')
       }
     },
     
@@ -354,7 +448,7 @@ export const useBangumiStore = defineStore('bangumi', {
       this.error = null
       
       try {
-        const response = await axios.get(`${API_URL}/Bangumi/${id}`)
+        const response = await axios.get(`${API_URL}/api/Bangumi/${id}`)
         
         // 更新或添加到番劇列表
         const index = this.bangumiList.findIndex(b => b.id === id)
@@ -379,7 +473,7 @@ export const useBangumiStore = defineStore('bangumi', {
       this.error = null
       
       try {
-        const response = await axios.get(`${API_URL}/Episode/Bangumi/${bangumiId}`)
+        const response = await axios.get(`${API_URL}/api/Episode/Bangumi/${bangumiId}`)
         
         // 更新劇集列表
         const newEpisodes = response.data
@@ -405,7 +499,7 @@ export const useBangumiStore = defineStore('bangumi', {
       this.error = null
       
       try {
-        const response = await axios.get(`${API_URL}/Bangumi/Status/${status}`)
+        const response = await axios.get(`${API_URL}/api/Bangumi/Status/${status}`)
         this.isLoading = false
         return response.data
       } catch (error) {
@@ -421,7 +515,7 @@ export const useBangumiStore = defineStore('bangumi', {
       this.error = null
       
       try {
-        const response = await axios.get(`${API_URL}/Bangumi/WeekDay/${encodeURIComponent(weekDay)}`)
+        const response = await axios.get(`${API_URL}/api/Bangumi/WeekDay/${encodeURIComponent(weekDay)}`)
         this.isLoading = false
         return response.data
       } catch (error) {
@@ -434,7 +528,7 @@ export const useBangumiStore = defineStore('bangumi', {
     // 增加劇集觀看次數
     async incrementEpisodeViews(episodeId: number) {
       try {
-        await axios.post(`${API_URL}/Episode/${episodeId}/IncrementViews`)
+        await axios.post(`${API_URL}/api/Episode/${episodeId}/IncrementViews`)
         
         // 更新本地數據
         const episode = this.episodes.find(e => e.id === episodeId)
@@ -443,6 +537,68 @@ export const useBangumiStore = defineStore('bangumi', {
         }
       } catch (error) {
         console.error('Error incrementing views:', error)
+      }
+    },
+  
+    // 獲取用戶的收藏
+    async fetchUserFavorites() {
+      if (!localStorage.getItem('user')) return
+      
+      try {
+        const response = await axios.get(`${API_URL}/api/Favorite`)
+        // 更新收藏列表
+        this.favorites = response.data.map((item: any) => item.id)
+        localStorage.setItem('bangumi-favorites', JSON.stringify(this.favorites))
+      } catch (error) {
+        console.error('Failed to fetch user favorites:', error)
+      }
+    },
+  
+    // 獲取用戶的觀看歷史
+    async fetchUserWatchHistory() {
+      if (!localStorage.getItem('user')) return
+      
+      try {
+        const response = await axios.get(`${API_URL}/api/WatchHistory`)
+        // 將從伺服器獲取的歷史記錄合併到本地
+        const serverHistory = response.data.map((item: any) => ({
+          episodeId: item.episodeId,
+          bangumiId: item.bangumiId,
+          timestamp: new Date(item.lastWatched).toISOString(),
+          progress: item.progress,
+        }))
+        
+        // 合併歷史記錄，優先使用伺服器版本
+        const existingEpisodeIds = serverHistory.map((h: any) => h.episodeId)
+        const filteredLocalHistory = this.history.filter(h => !existingEpisodeIds.includes(h.episodeId))
+        
+        this.history = [...serverHistory, ...filteredLocalHistory]
+        
+        // 保存到本地
+        localStorage.setItem('bangumi-history', JSON.stringify(this.history))
+      } catch (error) {
+        console.error('Failed to fetch user watch history:', error)
+      }
+    },
+  
+    // 搜索番劇
+    async searchBangumis(query: string) {
+      this.isLoading = true
+      this.error = null
+      
+      try {
+        const response = await axios.get(`${API_URL}/api/Bangumi/Search?query=${encodeURIComponent(query)}`)
+        this.isLoading = false
+        return response.data
+      } catch (error) {
+        this.error = error as Error
+        this.isLoading = false
+        console.error('Error searching bangumis:', error)
+        // 使用本地過濾作為後備
+        return this.bangumiList.filter(b => 
+          b.title.toLowerCase().includes(query.toLowerCase()) || 
+          b.description.toLowerCase().includes(query.toLowerCase()),
+        )
       }
     },
   },

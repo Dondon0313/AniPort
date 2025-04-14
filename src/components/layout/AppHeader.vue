@@ -26,16 +26,16 @@
               番劇列表
             </RouterLink>
             <RouterLink
+              to="/schedule"
+              class="hover:text-blue-600 py-1"
+            >
+              番劇日曆
+            </RouterLink>
+            <RouterLink
               to="/watch"
               class="hover:text-blue-600 py-1"
             >
               觀看平台
-            </RouterLink>
-            <RouterLink
-              to="/favorites"
-              class="hover:text-blue-600 py-1"
-            >
-              收藏
             </RouterLink>
           </nav>
         </div>
@@ -56,9 +56,29 @@
           
           <!-- 用戶菜單 -->
           <div class="flex items-center space-x-3">
-            <!-- <RouterLink to="/favorites" class="text-stone-700 hover:text-blue-600">
+            <!-- 通知圖標 -->
+            <RouterLink 
+              v-if="authStore.isLoggedIn" 
+              to="/notifications" 
+              class="text-stone-700 hover:text-blue-600 relative"
+            >
+              <span class="text-lg">🔔</span>
+              <span 
+                v-if="unreadNotificationsCount > 0"
+                class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center"
+              >
+                {{ unreadNotificationsCount > 9 ? '9+' : unreadNotificationsCount }}
+              </span>
+            </RouterLink>
+  
+            <!-- 收藏圖標 -->
+            <RouterLink 
+              v-if="authStore.isLoggedIn" 
+              to="/favorites" 
+              class="text-stone-700 hover:text-blue-600"
+            >
               <span class="text-lg">❤️</span>
-            </RouterLink> -->
+            </RouterLink>
             
             <template v-if="authStore.isLoggedIn">
               <div
@@ -90,6 +110,27 @@
                     @click="showMenu = false"
                   >
                     我的收藏
+                  </RouterLink>
+                  <RouterLink
+                    to="/history"
+                    class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    @click="showMenu = false"
+                  >
+                    觀看歷史
+                  </RouterLink>
+                  <RouterLink
+                    to="/friends"
+                    class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    @click="showMenu = false"
+                  >
+                    我的好友
+                  </RouterLink>
+                  <RouterLink
+                    to="/notifications"
+                    class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    @click="showMenu = false"
+                  >
+                    我的通知
                   </RouterLink>
                   <button
                     class="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
@@ -147,6 +188,13 @@
             番劇列表
           </RouterLink>
           <RouterLink
+            to="/schedule"
+            class="hover:text-blue-600 py-2 px-1"
+            active-class="text-blue-600 bg-blue-50 rounded"
+          >
+            番劇日曆
+          </RouterLink>
+          <RouterLink
             to="/watch"
             class="hover:text-blue-600 py-2 px-1"
             active-class="text-blue-600 bg-blue-50 rounded"
@@ -160,7 +208,7 @@
           >
             收藏
           </RouterLink>
-          
+    
           <!-- 移動端登出按鈕 -->
           <button 
             v-if="authStore.isLoggedIn"
@@ -169,7 +217,7 @@
           >
             登出
           </button>
-          
+    
           <!-- 移動端搜索框 -->
           <div class="py-2">
             <input
@@ -188,12 +236,16 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/useAuthStore'
+import axios from 'axios'
 
 const router = useRouter()
 const authStore = useAuthStore()
 const showMenu = ref(false)
 const menuRef = ref<HTMLElement | null>(null)
 const isMenuOpen = ref(false)
+const unreadNotificationsCount = ref(0)
+const notificationCheckInterval = ref<number | null>(null)
+
 
 const toggleMenu = () => {
   showMenu.value = !showMenu.value
@@ -230,5 +282,42 @@ onMounted(() => {
 
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
+})
+
+// 檢查未讀通知數量
+const checkUnreadNotifications = async () => {
+  if (!authStore.isLoggedIn) return
+  
+  try {
+    const response = await axios.get('/api/Notification?unreadOnly=true')
+    unreadNotificationsCount.value = response.data.length
+  } catch (error) {
+    console.error('Failed to fetch notifications:', error)
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside)
+  
+  // 在組件掛載時檢查登入狀態
+  console.log('Header mounted, login status:', authStore.isLoggedIn)
+  if (authStore.currentUser) {
+    console.log('Current user:', authStore.currentUser.username)
+    
+    // 檢查未讀通知
+    checkUnreadNotifications()
+    
+    // 設置定期檢查通知的間隔
+    notificationCheckInterval.value = window.setInterval(checkUnreadNotifications, 60000) // 每分鐘檢查一次
+  }
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside)
+  
+  // 清除通知檢查間隔
+  if (notificationCheckInterval.value) {
+    clearInterval(notificationCheckInterval.value)
+  }
 })
 </script>
